@@ -1,0 +1,51 @@
+<?php
+
+/**
+ * @file
+ * Implements the hooks functions.
+ */
+
+/**
+ * Implements hook_mail().
+ */
+function hello_world_mail($key, &$message, $params)
+{
+    $options = [
+        'langcode' => $message['langcode'],
+    ];
+
+    switch ($key) {
+        case 'create_article':
+            $message['from'] = \Drupal::config('system.site')->get('mail');
+            $message['subject'] = t('Article created: @title', array('@title' => $params['node_title']), $options);
+            $message['body'][] = $params['message'];
+            break;
+    }
+}
+
+/**
+ * Implements hook_entity_insert().
+ */
+function hello_world_entity_insert(Drupal\Core\Entity\EntityInterface $entity)
+{
+    if ($entity->getEntityTypeId() !== 'node' || ($entity->getEntityTypeId() === 'node' && $entity->bundle() !== 'article')) {
+        return;
+    }
+    $mailManager = \Drupal::service('plugin.manager.mail');
+    $module = 'hello_world';
+    $key = 'create_article';
+    // $to = \Drupal::currentUser()->getEmail();
+    $to = 'm.sayedfci@gmail.com';
+    $params['message'] = $entity->get('body')->value;
+    $params['node_title'] = $entity->label();
+    $lang_code = \Drupal::currentUser()->getPreferredLangcode();
+    $send = true;
+
+    $result = $mailManager->mail($module, $key, $to, $lang_code, $params, NULL, $send);
+
+    if ($result['result'] !== true) {
+        \Drupal::messenger()->addMessage(t('There was a problem sending your message and it was not sent.'), 'error');
+    } else {
+        \Drupal::messenger()->addMessage(t('Your message has been sent.'));
+    }
+}
